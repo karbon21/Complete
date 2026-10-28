@@ -1,0 +1,237 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>To-Do List</title>
+  <!-- Google Fonts: Poppins & Inter -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600;700&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+  <!-- Stylesheet matching reference design -->
+  <link rel="stylesheet" href="./css/styles.css">
+</head>
+<body>
+
+  <!-- Main Application Wrapper -->
+  <div class="app-wrapper">
+
+    <!-- Top Navigation Header -->
+    <header class="app-header">
+      <div class="header-left">
+        <h1 id="page-title" class="app-title">To-Do List</h1>
+        <div id="connection-indicator" class="connection-pill demo-mode" title="Click to configure Firebase">
+          <span class="status-dot"></span>
+          <span id="connection-label">Demo Mode</span>
+        </div>
+      </div>
+
+      <div class="header-actions">
+        <!-- Add Task Button -->
+        <button id="btn-open-add" class="header-btn" type="button" title="Add new task">
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+            <line x1="12" y1="5" x2="12" y2="19"></line>
+            <line x1="5" y1="12" x2="19" y2="12"></line>
+          </svg>
+          <span>Add Task</span>
+        </button>
+
+        <!-- Edit Mode Toggle Button -->
+        <button id="btn-toggle-edit" class="header-btn" type="button" title="Toggle edit mode">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/>
+            <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/>
+          </svg>
+          <span id="btn-edit-text">Edit</span>
+        </button>
+
+        <!-- Past / Active Page Switcher -->
+        <button id="btn-page-nav" class="header-btn past-btn" type="button" title="Go to Past completed tasks">
+          <span id="nav-btn-text">Past →</span>
+        </button>
+
+        <!-- Firebase Config Settings Button -->
+        <button id="btn-open-settings" class="header-btn icon-only-btn" type="button" title="Firebase Settings & Credentials">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <circle cx="12" cy="12" r="3"/>
+            <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"/>
+          </svg>
+        </button>
+
+        <!-- Auth Account Button -->
+        <button id="btn-user-auth" class="header-btn user-btn" type="button" title="User Account">
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/>
+            <circle cx="12" cy="7" r="4"/>
+          </svg>
+          <span id="user-display-email">Sign In</span>
+        </button>
+      </div>
+    </header>
+
+    <!-- Edit Mode Active Notification Banner -->
+    <div id="edit-banner" class="edit-banner hidden">
+      <div class="edit-banner-content">
+        <span class="banner-icon">✏️</span>
+        <span><strong>Edit Mode Active:</strong> You can edit task titles, descriptions, deadlines, delete tasks, or add new tasks.</span>
+      </div>
+      <button id="btn-done-editing-banner" class="btn-banner-done" type="button">Done Editing</button>
+    </div>
+
+    <!-- Unauthorized Account Warning Screen -->
+    <div id="unauthorized-card" class="unauthorized-card hidden">
+      <div class="unauthorized-icon">🔒</div>
+      <h2>Access Restricted</h2>
+      <p>This personal task manager is strictly restricted to the single authorized owner.</p>
+      <div class="unauthorized-details">
+        <div>Signed in as: <strong id="unauth-current-email">user@example.com</strong></div>
+        <div>Authorized user: <strong id="unauth-target-email">student@university.edu</strong></div>
+      </div>
+      <button id="btn-signout-unauth" class="header-btn" type="button">Sign Out</button>
+    </div>
+
+    <!-- Main Tasks List Container (Grouped by Deadline Day) -->
+    <main id="tasks-container" class="tasks-container">
+      <!-- Days and Task cards dynamically injected by js/app.js -->
+    </main>
+
+    <!-- Empty State -->
+    <div id="empty-state" class="empty-state hidden">
+      <div class="empty-icon">📋</div>
+      <h3 id="empty-title">No tasks found</h3>
+      <p id="empty-desc">Your to-do list is currently empty.</p>
+      <button id="btn-empty-add" class="header-btn add-btn-highlight" type="button">+ Add New Task</button>
+    </div>
+
+  </div> <!-- End .app-wrapper -->
+
+  <!-- Modal: Add / Edit Task -->
+  <div id="task-modal" class="modal-backdrop hidden">
+    <div class="modal-card">
+      <div class="modal-header">
+        <h2 id="task-modal-title">Add Task</h2>
+        <button id="btn-close-task-modal" class="btn-close-modal" type="button">&times;</button>
+      </div>
+      <form id="task-form">
+        <div class="form-group">
+          <label for="task-title-input">Task Title</label>
+          <input type="text" id="task-title-input" placeholder="e.g. Prepare presentation slides" required autofocus>
+        </div>
+
+        <div class="form-group">
+          <label for="task-description-input">Task Description</label>
+          <textarea id="task-description-input" rows="3" placeholder="Enter task details, notes, or subtasks..."></textarea>
+        </div>
+
+        <div class="form-group">
+          <label for="task-deadline-input">Deadline Date & Time</label>
+          <input type="datetime-local" id="task-deadline-input" required>
+        </div>
+
+        <div class="modal-actions">
+          <button id="btn-cancel-task" type="button" class="btn-secondary">Cancel</button>
+          <button id="btn-save-task" type="submit" class="btn-primary">Save Task</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- Modal: Firebase Settings & Config -->
+  <div id="config-modal" class="modal-backdrop hidden">
+    <div class="modal-card config-modal-card">
+      <div class="modal-header">
+        <h2>Firebase Firestore & Auth Settings</h2>
+        <button id="btn-close-config-modal" class="btn-close-modal" type="button">&times;</button>
+      </div>
+      <p class="modal-subtitle">Connect your Firebase project credentials or test in Local Demo Mode.</p>
+      
+      <form id="config-form">
+        <div class="form-row">
+          <div class="form-group">
+            <label for="cfg-api-key">API Key</label>
+            <input type="text" id="cfg-api-key" placeholder="AIzaSy...">
+          </div>
+          <div class="form-group">
+            <label for="cfg-project-id">Project ID</label>
+            <input type="text" id="cfg-project-id" placeholder="my-task-manager">
+          </div>
+        </div>
+
+        <div class="form-row">
+          <div class="form-group">
+            <label for="cfg-auth-domain">Auth Domain</label>
+            <input type="text" id="cfg-auth-domain" placeholder="my-task-manager.firebaseapp.com">
+          </div>
+          <div class="form-group">
+            <label for="cfg-storage-bucket">Storage Bucket</label>
+            <input type="text" id="cfg-storage-bucket" placeholder="my-task-manager.appspot.com">
+          </div>
+        </div>
+
+        <div class="form-row">
+          <div class="form-group">
+            <label for="cfg-sender-id">Messaging Sender ID</label>
+            <input type="text" id="cfg-sender-id" placeholder="1234567890">
+          </div>
+          <div class="form-group">
+            <label for="cfg-app-id">App ID</label>
+            <input type="text" id="cfg-app-id" placeholder="1:1234567890:web:abcdef">
+          </div>
+        </div>
+
+        <div class="form-group highlight-group">
+          <label for="cfg-authorized-email">Single Authorized User Email</label>
+          <input type="email" id="cfg-authorized-email" placeholder="student@university.edu" required>
+          <small class="field-hint">Access to this task manager and Firestore database is strictly restricted to this single user.</small>
+        </div>
+
+        <div class="modal-actions-space-between">
+          <button id="btn-reset-demo" type="button" class="btn-secondary">Reset Demo Tasks</button>
+          <div class="modal-actions-right">
+            <button id="btn-cancel-config" type="button" class="btn-secondary">Close</button>
+            <button type="submit" class="btn-primary">Save & Connect</button>
+          </div>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- Modal: Authentication (Login / Register) -->
+  <div id="auth-modal" class="modal-backdrop hidden">
+    <div class="modal-card auth-modal-card">
+      <div class="modal-header">
+        <h2 id="auth-modal-title">Sign In</h2>
+        <button id="btn-close-auth-modal" class="btn-close-modal" type="button">&times;</button>
+      </div>
+      <p class="modal-subtitle">Authorized single-user personal task manager</p>
+
+      <div id="auth-error-msg" class="auth-error-msg hidden"></div>
+
+      <form id="auth-form">
+        <div class="form-group">
+          <label for="auth-email">Email Address</label>
+          <input type="email" id="auth-email" placeholder="student@university.edu" required>
+        </div>
+
+        <div class="form-group">
+          <label for="auth-password">Password</label>
+          <input type="password" id="auth-password" placeholder="••••••••" required>
+        </div>
+
+        <button id="auth-submit-btn" type="submit" class="btn-primary btn-full-width">Sign In</button>
+      </form>
+
+      <div class="auth-footer-actions">
+        <button id="auth-toggle-mode" type="button" class="btn-link">Don't have an account? Register</button>
+        <button id="btn-quick-auth-demo" type="button" class="btn-demo-quick">Quick Sign In as Authorized Student (Demo)</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Core JavaScript Application Scripts -->
+  <script type="module" src="./js/firebase-config.js"></script>
+  <script type="module" src="./js/auth.js"></script>
+  <script type="module" src="./js/db.js"></script>
+  <script type="module" src="./js/app.js"></script>
+</body>
+</html>
