@@ -1,111 +1,70 @@
-# Personal Task Manager (To-Do List)
+# Complete
 
-A static frontend web application for personal task management, styled identically to the reference design. Built entirely client-side using standard web technologies (HTML5, CSS3, modern ES6+ JavaScript) interfacing directly with **Google Cloud Firestore** and **Firebase Authentication** via the Firebase Web SDK v10. Zero custom backend servers (Node.js or Python) are required, making the application 100% ready for deployment on static hosting platforms like **GitHub Pages**.
+A fast, minimalist, dark-themed personal web task list built with vanilla HTML5, CSS3, and modern JavaScript. It connects directly to Google Cloud Firestore for real-time task synchronization and uses Firebase Authentication to secure access for a single owner.
 
----
-
-## 🎨 Visual Design & Features
-
-- **Identical Reference Styling**:
-  - Deep charcoal theme (`#373737` canvas, `#4b4b4b` card headers, `#2f2f2f` expanded card bodies).
-  - Bold, clean typography using Google Fonts **Poppins** and **Inter**.
-  - Distinctive `Complete Task` button with exact olive-green border (`#516622`) and vibrant green text (`#579c18`).
-  - Sleek top header with `To-Do List` title and `Past →` navigation button.
-  - Collapsible task accordion cards showing the task title, `Deadline: [Date] · [Time]`, and chevron indicators (`⌵` / `>`).
-- **Grouping by Deadline Day**:
-  - All tasks are grouped strictly by their **deadline day** (e.g., *Today*, *Tomorrow*, specific calendar dates, or *Overdue*).
-  - Each day section displays a day header and task count badge, with the respective task cards listed underneath.
-- **Task Schema (Title & Description)**:
-  - Each task consists of a **Title**, a **Description**, a **Deadline**, and a boolean **Completed** status.
-  - Card headers display the task title on the left and the formatted deadline on the right.
-  - Clicking any task card smoothly expands it to reveal its full description and the action buttons (`Complete Task`, `Edit`, `Delete`).
-- **Task Lifecycle & Real-Time Sync**:
-  - **Complete Task Button**: Clicking `Complete Task` executes an atomic Firestore `updateDoc` payload toggling `completed: true`. Firestore's real-time `onSnapshot` listener automatically moves the task to the **Past** page.
-  - **Past Page & Uncomplete Button**: Completed tasks are listed on the Past page. Clicking `Uncomplete` updates the Firestore status to `completed: false`, returning the item to the active to-do list.
-- **Edit Mode**:
-  - The `Edit` header button toggles **Edit Mode**.
-  - In Edit Mode, users can edit task titles, descriptions, and deadlines, delete tasks, or insert new tasks via inline day buttons or the modal form.
-- **Single Authorized User Restriction**:
-  - Firebase Authentication restricts app access to a single authorized user email or UID.
-  - Unauthorized sign-ins are immediately blocked on the client side with a clear lock notice, and strictly prevented on the database level via Cloud Firestore Security Rules.
+Designed to run entirely client-side with zero custom backend infrastructure, making it ready for instant deployment to static hosting providers like GitHub Pages.
 
 ---
 
-## 📁 Project Structure
+## Features
+
+- **Deadline-Based Organization**: Tasks are automatically categorized by deadline day (Due Today, Tomorrow, Upcoming dates, or Overdue).
+- **Expandable Task Cards**: Clean card layout displaying task title and deadline, expanding on click to reveal full task details and actions.
+- **Real-Time Database Sync**: Powered by Firestore real-time listeners (`onSnapshot`) for instant cross-device updates without page refreshes.
+- **Active & Completed Lifecycle**: Complete active tasks with a single click to archive them to the **Past** page, or restore completed tasks back to the active list anytime.
+- **Edit Mode**: Dedicated editing state to quickly update task titles, descriptions, and deadlines, or delete tasks.
+- **Single-User Security**: Strict access control via Firebase Authentication and Cloud Firestore Security Rules, ensuring only the verified owner can view or edit tasks.
+- **Zero Build Tools Required**: Pure native ES modules and CSS variables—no npm build steps, webpack, or external build dependencies required.
+
+---
+
+## Project Structure
 
 ```text
-D:\Complete/
-├── index.html              # Main application markup & modal templates
+├── index.html              # Core application markup
 ├── css/
-│   └── styles.css          # Pixel-perfect styles sampled from the reference design
+│   └── styles.css          # Dark-theme stylesheet and responsive layout
 ├── js/
-│   ├── firebase-config.js  # Firebase modular SDK initialization & config store
-│   ├── auth.js             # Authentication logic & single authorized user validation
-│   ├── db.js               # Firestore interface (onSnapshot real-time listeners & CRUD)
-│   └── app.js              # Application controller & state management
-├── firestore.rules         # Security rules restricting database access to single user
-├── reference picture.png   # Original reference design image
-└── README.md               # Documentation & deployment guide
+│   ├── app.js              # Application controller and UI interactions
+│   ├── auth.js             # Authentication state observer & access control
+│   ├── db.js               # Firestore real-time listeners and database operations
+│   └── firebase-config.js  # Firebase SDK configuration and local credentials store
+└── firestore.rules         # Security rules enforcing single-owner access
 ```
 
 ---
 
-## 🚀 Quick Start (Local Preview)
+## Getting Started
 
-The application includes a built-in **Local Demo Mode** so you can preview and test every feature immediately without creating a Firebase account beforehand:
-
-1. Open `index.html` in any modern web browser.
-2. The initial view displays tasks grouped by deadline day with the exact dark aesthetic from the reference picture.
-3. Click any task header to expand/collapse its description and `Complete Task` button.
-4. Click `Complete Task` — notice it moves instantly to the `Past` page.
-5. Click `Past →` in the top right to see completed tasks with their `Uncomplete` button.
-6. Click `Edit` to enter edit mode, update descriptions, add tasks, or delete tasks.
+### Local Preview
+Open `index.html` directly in any modern browser. The application includes an offline demo mode that lets you test creating, editing, completing, and organizing tasks locally before connecting a database.
 
 ---
 
-## ☁️ Connecting to Live Firebase
+## Firebase Setup
+
+To connect your own live Firestore database and enable authentication:
 
 ### 1. Create a Firebase Project
-1. Go to the [Firebase Console](https://console.firebase.google.com/) and click **Add Project**.
-2. Enable **Cloud Firestore**:
-   - Go to **Build > Firestore Database** and click **Create Database**.
-3. Enable **Firebase Authentication**:
-   - Go to **Build > Authentication** and enable **Email/Password**.
-   - Create your authorized user account (e.g. `student@university.edu`).
+1. Go to the [Firebase Console](https://console.firebase.google.com/) and create a project.
+2. In the left menu, navigate to **Build > Authentication**, enable **Email/Password**, and add your account under the **Users** tab.
+3. Navigate to **Build > Firestore Database**, click **Create database**, and start in production mode.
 
-### 2. Configure Credentials in the App
-You can connect live Firebase credentials in either of two ways:
-
-#### Option A: In the Web UI (Recommended)
-1. Click the **Settings (⚙️)** button or the **Demo Mode** pill in the top header.
-2. Paste your Firebase credentials (`apiKey`, `projectId`, `authDomain`, etc.).
-3. Set your **Single Authorized User Email** (e.g. `student@university.edu`).
-4. Click **Save & Connect**. Credentials are stored securely in local storage and the app connects live to Firestore.
-
-#### Option B: In `js/firebase-config.js`
-Edit `js/firebase-config.js` and update `DEFAULT_FIREBASE_CONFIG` and `DEFAULT_AUTHORIZED_EMAIL`.
-
----
-
-## 🔒 Firestore Security Rules
-
-Deploy the provided `firestore.rules` file to your Firebase project:
+### 2. Deploy Security Rules
+In your Firestore Database, open the **Rules** tab, replace the contents with the rules below (using your email), and click **Publish**:
 
 ```firestore
 rules_version = '2';
 
 service cloud.firestore {
   match /databases/{database}/documents {
-
-    function isSingleAuthorizedUser() {
-      return request.auth != null && (
-        request.auth.token.email.lower() == "student@university.edu" ||
-        request.auth.uid == "YOUR_AUTHORIZED_USER_UID_HERE"
-      );
+    function isOwner() {
+      return request.auth != null && 
+             request.auth.token.email.lower() == "your-email@example.com";
     }
 
     match /tasks/{taskId} {
-      allow read, write: if isSingleAuthorizedUser();
+      allow read, write: if isOwner();
     }
 
     match /{document=**} {
@@ -115,19 +74,23 @@ service cloud.firestore {
 }
 ```
 
+### 3. Connect Credentials
+In your browser, open the app, click the **Settings (⚙️)** icon in the top header, paste your Firebase web config values, enter your authorized email, and click **Save & Connect**.
+
+Alternatively, you can edit `js/firebase-config.js` and set your credentials directly in `DEFAULT_FIREBASE_CONFIG`.
+
 ---
 
-## 🌐 Deploying to GitHub Pages
+## Deployment (GitHub Pages)
 
-1. Push your code to a GitHub repository:
+This project is built with static files and relative paths, ready for GitHub Pages:
+
+1. Push the code to a GitHub repository:
    ```bash
-   git init
    git add .
-   git commit -m "Personal Task Manager"
-   git remote add origin https://github.com/<your-username>/<your-repo-name>.git
-   git branch -M main
-   git push -u origin main
+   git commit -m "Deploy task manager"
+   git push origin main
    ```
-2. In your GitHub repository, navigate to **Settings > Pages**.
-3. Under **Build and deployment > Branch**, select `main` and `/ (root)`.
-4. Click **Save**. The app is instantly live at `https://<your-username>.github.io/<your-repo-name>/`.
+2. In your GitHub repository, go to **Settings > Pages**.
+3. Under **Build and deployment > Branch**, select `main` and `/ (root)`, then click **Save**.
+4. In the Firebase Console under **Authentication > Settings > Authorized domains**, add your GitHub Pages domain (`<username>.github.io`) so Firebase permits sign-ins from your deployed site.
