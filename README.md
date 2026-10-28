@@ -1,6 +1,6 @@
 # Complete
 
-A fast, minimalist, dark-themed personal web task list built with vanilla HTML5, CSS3, and modern JavaScript. It connects directly to Google Cloud Firestore for real-time task synchronization and uses Firebase Authentication to secure access for a single owner.
+A fast, minimalist, dark-themed personal web task list built with vanilla HTML5, CSS3, and modern JavaScript. It connects directly to Google Cloud Firestore for real-time task synchronization and uses Firebase Authentication to secure access for whitelisted users.
 
 Designed to run entirely client-side with zero custom backend infrastructure, making it ready for instant deployment to static hosting providers like GitHub Pages.
 
@@ -13,7 +13,7 @@ Designed to run entirely client-side with zero custom backend infrastructure, ma
 - **Real-Time Database Sync**: Powered by Firestore real-time listeners (`onSnapshot`) for instant cross-device updates without page refreshes.
 - **Active & Completed Lifecycle**: Complete active tasks with a single click to archive them to the **Past** page, or restore completed tasks back to the active list anytime.
 - **Edit Mode**: Dedicated editing state to quickly update task titles, descriptions, and deadlines, or delete tasks.
-- **Single-User Security**: Strict access control via Firebase Authentication and Cloud Firestore Security Rules, ensuring only the verified owner can view or edit tasks.
+- **Whitelist Security**: Strict access control via Firebase Authentication and Cloud Firestore Security Rules, ensuring only the verified users can view or edit tasks.
 - **Zero Build Tools Required**: Pure native ES modules and CSS variables—no npm build steps, webpack, or external build dependencies required.
 
 ---
@@ -24,12 +24,11 @@ Designed to run entirely client-side with zero custom backend infrastructure, ma
 ├── index.html              # Core application markup
 ├── css/
 │   └── styles.css          # Dark-theme stylesheet and responsive layout
-├── js/
-│   ├── app.js              # Application controller and UI interactions
-│   ├── auth.js             # Authentication state observer & access control
-│   ├── db.js               # Firestore real-time listeners and database operations
-│   └── firebase-config.js  # Firebase SDK configuration and local credentials store
-└── firestore.rules         # Security rules enforcing single-owner access
+└── js/
+    ├── app.js              # Application controller and UI interactions
+    ├── auth.js             # Authentication state observer & access control
+    ├── db.js               # Firestore real-time listeners and database operations
+    └── firebase-config.js  # Firebase SDK configuration and local credentials store
 ```
 
 ---

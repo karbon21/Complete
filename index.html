@@ -179,12 +179,6 @@
           </div>
         </div>
 
-        <div class="form-group highlight-group">
-          <label for="cfg-authorized-email">Single Authorized User Email</label>
-          <input type="email" id="cfg-authorized-email" placeholder="student@university.edu" required>
-          <small class="field-hint">Access to this task manager and Firestore database is strictly restricted to this single user.</small>
-        </div>
-
         <div class="modal-actions-space-between">
           <button id="btn-reset-demo" type="button" class="btn-secondary">Reset Demo Tasks</button>
           <div class="modal-actions-right">
@@ -196,21 +190,21 @@
     </div>
   </div>
 
-  <!-- Modal: Authentication (Login / Register) -->
+  <!-- Modal: Authentication (Sign In) -->
   <div id="auth-modal" class="modal-backdrop hidden">
     <div class="modal-card auth-modal-card">
       <div class="modal-header">
         <h2 id="auth-modal-title">Sign In</h2>
         <button id="btn-close-auth-modal" class="btn-close-modal" type="button">&times;</button>
       </div>
-      <p class="modal-subtitle">Authorized single-user personal task manager</p>
+      <p class="modal-subtitle">Sign in to access your tasks</p>
 
       <div id="auth-error-msg" class="auth-error-msg hidden"></div>
 
       <form id="auth-form">
         <div class="form-group">
           <label for="auth-email">Email Address</label>
-          <input type="email" id="auth-email" placeholder="student@university.edu" required>
+          <input type="email" id="auth-email" placeholder="user@example.com" required>
         </div>
 
         <div class="form-group">
@@ -222,8 +216,7 @@
       </form>
 
       <div class="auth-footer-actions">
-        <button id="auth-toggle-mode" type="button" class="btn-link">Don't have an account? Register</button>
-        <button id="btn-quick-auth-demo" type="button" class="btn-demo-quick">Quick Sign In as Authorized Student (Demo)</button>
+        <button id="btn-quick-auth-demo" type="button" class="btn-demo-quick">Quick Sign In (Demo Mode)</button>
       </div>
     </div>
   </div>

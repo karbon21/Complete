@@ -20,10 +20,6 @@ export const DEFAULT_FIREBASE_CONFIG = {
   appId: "1:681124214785:web:67092336f90e16ae896800"
 };
 
-// Authorized user restriction (Email or UID)
-// Access to this task manager is strictly restricted to this single user
-export const DEFAULT_AUTHORIZED_EMAIL = "yavrumyan.emil@gmail.com";
-
 /**
  * Retrieve current active configuration (local storage override or default)
  */
@@ -31,24 +27,26 @@ export function getStoredConfig() {
   try {
     const stored = localStorage.getItem("firebase_task_manager_config");
     if (stored) {
-      return JSON.parse(stored);
+      const parsed = JSON.parse(stored);
+      return {
+        firebaseConfig: parsed.firebaseConfig || DEFAULT_FIREBASE_CONFIG
+      };
     }
   } catch (e) {
     console.warn("Could not read stored Firebase config:", e);
   }
   return {
-    firebaseConfig: DEFAULT_FIREBASE_CONFIG,
-    authorizedEmail: DEFAULT_AUTHORIZED_EMAIL
+    firebaseConfig: DEFAULT_FIREBASE_CONFIG
   };
 }
 
 /**
  * Save configuration to local storage
  */
-export function saveStoredConfig(firebaseConfig, authorizedEmail) {
+export function saveStoredConfig(firebaseConfig) {
   localStorage.setItem(
     "firebase_task_manager_config",
-    JSON.stringify({ firebaseConfig, authorizedEmail })
+    JSON.stringify({ firebaseConfig })
   );
 }
 

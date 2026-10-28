@@ -15,7 +15,6 @@ import {
 import {
   initAuth,
   loginWithEmail,
-  registerWithEmail,
   logoutUser,
   getCurrentUser,
   isUserAuthorized
@@ -83,7 +82,6 @@ const elements = {
   cfgStorageBucket: document.getElementById("cfg-storage-bucket"),
   cfgSenderId: document.getElementById("cfg-sender-id"),
   cfgAppId: document.getElementById("cfg-app-id"),
-  cfgAuthorizedEmail: document.getElementById("cfg-authorized-email"),
   btnCloseConfigModal: document.getElementById("btn-close-config-modal"),
   btnCancelConfig: document.getElementById("btn-cancel-config"),
   btnResetDemo: document.getElementById("btn-reset-demo"),
@@ -95,13 +93,10 @@ const elements = {
   authEmail: document.getElementById("auth-email"),
   authPassword: document.getElementById("auth-password"),
   authSubmitBtn: document.getElementById("auth-submit-btn"),
-  authToggleMode: document.getElementById("auth-toggle-mode"),
   authErrorMsg: document.getElementById("auth-error-msg"),
   btnCloseAuthModal: document.getElementById("btn-close-auth-modal"),
   btnQuickAuthDemo: document.getElementById("btn-quick-auth-demo")
 };
-
-let isRegisterMode = false;
 
 /**
  * Initialize Application
@@ -112,26 +107,27 @@ export function initApp() {
   updateConnectionStatusUI();
 
   // Initialize Auth state observer
-  initAuth(({ user, isAuthorized, isDemo, authorizedEmail }) => {
+  initAuth(({ user, isAuthorized, isDemo }) => {
     state.user = user;
     state.isAuthorized = isAuthorized;
     state.isDemo = isDemo;
 
-    updateAuthHeaderUI(user, isAuthorized, authorizedEmail);
+    updateAuthHeaderUI(user);
+
+    // Clean up previous subscription and clear tasks from memory
+    if (state.unsubscribeTasks) {
+      state.unsubscribeTasks();
+      state.unsubscribeTasks = null;
+    }
+    state.tasks = [];
+    state.expandedTaskIds.clear();
 
     if (user && isAuthorized) {
-      elements.unauthorizedCard.classList.add("hidden");
+      if (elements.unauthorizedCard) elements.unauthorizedCard.classList.add("hidden");
       elements.tasksContainer.classList.remove("hidden");
       startTasksSubscription();
-    } else if (user && !isAuthorized) {
-      showUnauthorizedScreen(user.email, authorizedEmail);
-      if (state.unsubscribeTasks) state.unsubscribeTasks();
-      elements.tasksContainer.classList.add("hidden");
-      elements.emptyState.classList.add("hidden");
     } else {
-      elements.unauthorizedCard.classList.add("hidden");
-      if (state.unsubscribeTasks) state.unsubscribeTasks();
-      state.tasks = [];
+      if (elements.unauthorizedCard) elements.unauthorizedCard.classList.add("hidden");
       renderTasks();
     }
   });
@@ -166,20 +162,14 @@ function startTasksSubscription() {
 /**
  * Update Header Auth UI
  */
-function updateAuthHeaderUI(user, isAuthorized, authorizedEmail) {
+function updateAuthHeaderUI(user) {
   if (user) {
-    elements.userDisplayEmail.textContent = user.email || "Authorized User";
+    elements.userDisplayEmail.textContent = user.email || "Account";
     elements.btnUserAuth.title = `Signed in as ${user.email} (Click to sign out)`;
   } else {
     elements.userDisplayEmail.textContent = "Sign In";
     elements.btnUserAuth.title = "Click to sign in";
   }
-}
-
-function showUnauthorizedScreen(currentEmail, authorizedEmail) {
-  elements.unauthorizedCard.classList.remove("hidden");
-  elements.unauthCurrentEmail.textContent = currentEmail || "Unknown account";
-  elements.unauthTargetEmail.textContent = authorizedEmail || "Configured Single User";
 }
 
 /**
@@ -315,14 +305,12 @@ export function renderTasks() {
     elements.editBanner.classList.add("hidden");
   }
 
-  // Not signed in or unauthorized
+  // Not signed in
   if (!user || !isAuthorized) {
     elements.tasksContainer.innerHTML = "";
     elements.emptyState.classList.remove("hidden");
-    elements.emptyTitle.textContent = user ? "Access Denied" : "Sign In Required";
-    elements.emptyDesc.textContent = user
-      ? "Your account is not authorized to access this personal task manager."
-      : "Please sign in to view your tasks.";
+    elements.emptyTitle.textContent = "Sign In Required";
+    elements.emptyDesc.textContent = "Please sign in to view and manage your tasks.";
     return;
   }
 
@@ -597,9 +585,8 @@ function setupEventListeners() {
       messagingSenderId: elements.cfgSenderId.value.trim(),
       appId: elements.cfgAppId.value.trim()
     };
-    const newAuthEmail = elements.cfgAuthorizedEmail.value.trim().toLowerCase();
 
-    saveStoredConfig(newConfig, newAuthEmail);
+    saveStoredConfig(newConfig);
     alert("Firebase credentials saved! The application will reload to establish connection.");
     window.location.reload();
   });
@@ -623,18 +610,10 @@ function setupEventListeners() {
     }
   });
 
-  elements.btnSignoutUnauth.addEventListener("click", () => logoutUser());
+  if (elements.btnSignoutUnauth) {
+    elements.btnSignoutUnauth.addEventListener("click", () => logoutUser());
+  }
   elements.btnCloseAuthModal.addEventListener("click", closeAuthModal);
-
-  elements.authToggleMode.addEventListener("click", () => {
-    isRegisterMode = !isRegisterMode;
-    elements.authModalTitle.textContent = isRegisterMode ? "Register Authorized Account" : "Sign In";
-    elements.authSubmitBtn.textContent = isRegisterMode ? "Register Account" : "Sign In";
-    elements.authToggleMode.textContent = isRegisterMode
-      ? "Already have an account? Sign In"
-      : "Need to create the authorized account? Register";
-    elements.authErrorMsg.classList.add("hidden");
-  });
 
   elements.authForm.addEventListener("submit", async (e) => {
     e.preventDefault();
@@ -645,32 +624,36 @@ function setupEventListeners() {
     elements.authErrorMsg.classList.add("hidden");
 
     try {
-      if (isRegisterMode) {
-        await registerWithEmail(email, password);
-      } else {
-        await loginWithEmail(email, password);
-      }
+      await loginWithEmail(email, password);
       closeAuthModal();
     } catch (err) {
-      elements.authErrorMsg.textContent = err.message;
+      let message = err.message || "Failed to sign in.";
+      if (err.code === "auth/invalid-credential" || err.code === "auth/user-not-found" || err.code === "auth/wrong-password") {
+        message = "Invalid email or password. Please check your credentials.";
+      } else if (err.code === "auth/too-many-requests") {
+        message = "Too many failed attempts. Please try again later.";
+      }
+      elements.authErrorMsg.textContent = message;
       elements.authErrorMsg.classList.remove("hidden");
     } finally {
       elements.authSubmitBtn.disabled = false;
     }
   });
 
-  elements.btnQuickAuthDemo.addEventListener("click", async () => {
-    const { authorizedEmail } = getStoredConfig();
-    elements.authEmail.value = authorizedEmail;
-    elements.authPassword.value = "password123";
-    try {
-      await loginWithEmail(authorizedEmail, "password123");
-      closeAuthModal();
-    } catch (e) {
-      elements.authErrorMsg.textContent = e.message;
-      elements.authErrorMsg.classList.remove("hidden");
-    }
-  });
+  if (elements.btnQuickAuthDemo) {
+    elements.btnQuickAuthDemo.addEventListener("click", async () => {
+      const demoEmail = "student@university.edu";
+      elements.authEmail.value = demoEmail;
+      elements.authPassword.value = "demo123456";
+      try {
+        await loginWithEmail(demoEmail, "demo123456");
+        closeAuthModal();
+      } catch (e) {
+        elements.authErrorMsg.textContent = e.message;
+        elements.authErrorMsg.classList.remove("hidden");
+      }
+    });
+  }
 }
 
 /**
@@ -726,7 +709,7 @@ function closeConfigModal() {
 }
 
 function populateConfigFields() {
-  const { firebaseConfig, authorizedEmail } = getStoredConfig();
+  const { firebaseConfig } = getStoredConfig();
   if (firebaseConfig) {
     elements.cfgApiKey.value = firebaseConfig.apiKey || "";
     elements.cfgProjectId.value = firebaseConfig.projectId || "";
@@ -735,7 +718,6 @@ function populateConfigFields() {
     elements.cfgSenderId.value = firebaseConfig.messagingSenderId || "";
     elements.cfgAppId.value = firebaseConfig.appId || "";
   }
-  elements.cfgAuthorizedEmail.value = authorizedEmail || "";
 }
 
 function updateConnectionStatusUI() {
@@ -744,10 +726,16 @@ function updateConnectionStatusUI() {
     elements.connectionIndicator.className = "connection-pill connected";
     elements.connectionLabel.textContent = "Firestore Live";
     elements.connectionIndicator.title = "Connected to live Firebase Firestore";
+    if (elements.btnQuickAuthDemo) {
+      elements.btnQuickAuthDemo.classList.add("hidden");
+    }
   } else {
     elements.connectionIndicator.className = "connection-pill demo-mode";
     elements.connectionLabel.textContent = "Demo Mode";
     elements.connectionIndicator.title = "Running with reactive local store. Click to configure live Firebase.";
+    if (elements.btnQuickAuthDemo) {
+      elements.btnQuickAuthDemo.classList.remove("hidden");
+    }
   }
 }
 

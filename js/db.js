@@ -1,7 +1,8 @@
 /**
  * Database Module (Cloud Firestore Interface)
  * Direct client-side Firestore integration with real-time onSnapshot listeners
- * Stores tasks containing: title, description, deadline, and boolean completed status.
+ * Stores tasks containing: title, description, deadline, boolean completed status, and userId.
+ * Ensures strict multi-user task isolation.
  */
 
 import { db, isFirebaseConfigured } from "./firebase-config.js";
@@ -15,7 +16,6 @@ import {
   onSnapshot,
   query,
   where,
-  orderBy,
   serverTimestamp
 } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
 
@@ -36,6 +36,7 @@ const INITIAL_SAMPLE_TASKS = [
     description: "Prepare slides covering key milestones, sprint outcomes, and next quarter roadmap.",
     deadline: `${todayDateStr}T17:00`,
     completed: false,
+    userId: "demo-authorized-user-001",
     createdAt: new Date().toISOString()
   },
   {
@@ -44,6 +45,7 @@ const INITIAL_SAMPLE_TASKS = [
     description: "Check architecture compliance, unit test coverage, and documentation for new features.",
     deadline: `${tomorrowDateStr}T12:30`,
     completed: false,
+    userId: "demo-authorized-user-001",
     createdAt: new Date().toISOString()
   },
   {
@@ -53,15 +55,17 @@ const INITIAL_SAMPLE_TASKS = [
     deadline: `${pastDateStr}T15:00`,
     completed: true,
     completedAt: pastDate.toISOString(),
+    userId: "demo-authorized-user-001",
     createdAt: new Date(Date.now() - 72 * 3600 * 1000).toISOString()
   }
 ];
 
-// In-memory / LocalStorage fallback real-time store for demo mode
+// In-memory / LocalStorage fallback real-time store for demo mode with multi-user isolation
 class LocalTaskStore {
   constructor() {
     this.storageKey = "personal_task_manager_store_v3";
-    this.listeners = new Set();
+    this.listeners = new Map();
+    this.nextListenerId = 1;
     this.init();
   }
 
@@ -72,7 +76,7 @@ class LocalTaskStore {
     }
   }
 
-  getTasks() {
+  getAllTasks() {
     try {
       const stored = localStorage.getItem(this.storageKey);
       return stored ? JSON.parse(stored) : [];
@@ -81,24 +85,31 @@ class LocalTaskStore {
     }
   }
 
+  getUserTasks(userId) {
+    if (!userId) return [];
+    return this.getAllTasks().filter(t => t.userId === userId);
+  }
+
   saveTasks(tasks) {
     localStorage.setItem(this.storageKey, JSON.stringify(tasks));
     this.notify();
   }
 
   notify() {
-    const tasks = this.getTasks();
-    this.listeners.forEach(cb => cb([...tasks]));
+    this.listeners.forEach(({ callback, userId }) => {
+      callback(this.getUserTasks(userId));
+    });
   }
 
-  subscribe(callback) {
-    this.listeners.add(callback);
-    callback(this.getTasks());
-    return () => this.listeners.delete(callback);
+  subscribe(callback, userId) {
+    const id = this.nextListenerId++;
+    this.listeners.set(id, { callback, userId });
+    callback(this.getUserTasks(userId));
+    return () => this.listeners.delete(id);
   }
 
   addTask(taskData) {
-    const tasks = this.getTasks();
+    const allTasks = this.getAllTasks();
     const newTask = {
       id: "local-" + Date.now() + "-" + Math.random().toString(36).substring(2, 7),
       title: taskData.title.trim(),
@@ -108,28 +119,28 @@ class LocalTaskStore {
       userId: taskData.userId || "demo-authorized-user-001",
       createdAt: new Date().toISOString()
     };
-    tasks.unshift(newTask);
-    this.saveTasks(tasks);
+    allTasks.unshift(newTask);
+    this.saveTasks(allTasks);
     return newTask;
   }
 
-  toggleComplete(id, completed) {
-    const tasks = this.getTasks().map(t => {
-      if (t.id === id) {
+  toggleComplete(id, completed, userId) {
+    const allTasks = this.getAllTasks().map(t => {
+      if (t.id === id && (!userId || t.userId === userId)) {
         return {
           ...t,
-          completed: completed,
+          completed: Boolean(completed),
           completedAt: completed ? new Date().toISOString() : null
         };
       }
       return t;
     });
-    this.saveTasks(tasks);
+    this.saveTasks(allTasks);
   }
 
-  updateTask(id, fields) {
-    const tasks = this.getTasks().map(t => {
-      if (t.id === id) {
+  updateTask(id, fields, userId) {
+    const allTasks = this.getAllTasks().map(t => {
+      if (t.id === id && (!userId || t.userId === userId)) {
         return {
           ...t,
           ...fields,
@@ -138,17 +149,23 @@ class LocalTaskStore {
       }
       return t;
     });
-    this.saveTasks(tasks);
+    this.saveTasks(allTasks);
   }
 
-  deleteTask(id) {
-    const tasks = this.getTasks().filter(t => t.id !== id);
-    this.saveTasks(tasks);
+  deleteTask(id, userId) {
+    const allTasks = this.getAllTasks().filter(t => !(t.id === id && (!userId || t.userId === userId)));
+    this.saveTasks(allTasks);
   }
 
-  resetDemo() {
-    localStorage.setItem(this.storageKey, JSON.stringify(INITIAL_SAMPLE_TASKS));
-    this.notify();
+  resetDemo(userId) {
+    const targetUserId = userId || "demo-authorized-user-001";
+    const otherTasks = this.getAllTasks().filter(t => t.userId !== targetUserId);
+    const userSamples = INITIAL_SAMPLE_TASKS.map(t => ({
+      ...t,
+      id: "sample-" + Math.random().toString(36).substring(2, 7),
+      userId: targetUserId
+    }));
+    this.saveTasks([...userSamples, ...otherTasks]);
   }
 }
 
@@ -156,25 +173,26 @@ const localStore = new LocalTaskStore();
 
 /**
  * Subscribe to real-time task updates via Firestore onSnapshot
+ * Strictly isolates tasks so only the current user's tasks are fetched.
  * @param {Function} onTasksReceived Callback receiving tasks array
  * @param {Function} onError Callback for error handling
  * @returns {Function} Unsubscribe function
  */
 export function subscribeToTasks(onTasksReceived, onError) {
-  if (!isFirebaseConfigured() || !db) {
-    console.log("Subscribing to reactive local store (Demo Mode)");
-    return localStore.subscribe(onTasksReceived);
-  }
-
   const user = getCurrentUser();
   if (!user) {
     onTasksReceived([]);
     return () => {};
   }
 
+  if (!isFirebaseConfigured() || !db) {
+    console.log("Subscribing to reactive local store (Demo Mode) for user:", user.uid);
+    return localStore.subscribe(onTasksReceived, user.uid);
+  }
+
   try {
     const tasksCol = collection(db, COLLECTION_NAME);
-    // Real-time listener for current user tasks
+    // Real-time listener strictly querying documents matching current user's UID
     const q = query(
       tasksCol, 
       where("userId", "==", user.uid)
@@ -207,20 +225,19 @@ export function subscribeToTasks(onTasksReceived, onError) {
 }
 
 /**
- * Insert a new task into Firestore database
+ * Insert a new task into Firestore database with current user UID
  * @param {Object} taskData { title, description, deadline }
  */
 export async function insertTask(taskData) {
   const user = getCurrentUser();
-  
+  if (!user) throw new Error("Authentication required to add tasks.");
+
   if (!isFirebaseConfigured() || !db) {
     return localStore.addTask({
       ...taskData,
-      userId: user ? user.uid : "demo-authorized-user-001"
+      userId: user.uid
     });
   }
-
-  if (!user) throw new Error("Authentication required to add tasks.");
 
   const payload = {
     title: taskData.title.trim(),
@@ -242,8 +259,11 @@ export async function insertTask(taskData) {
  * @param {boolean} completed Target status (true = completed, false = active)
  */
 export async function toggleTaskCompletion(taskId, completed) {
+  const user = getCurrentUser();
+  if (!user) throw new Error("Authentication required.");
+
   if (!isFirebaseConfigured() || !db) {
-    return localStore.toggleComplete(taskId, completed);
+    return localStore.toggleComplete(taskId, completed, user.uid);
   }
 
   const taskRef = doc(db, COLLECTION_NAME, taskId);
@@ -261,8 +281,11 @@ export async function toggleTaskCompletion(taskId, completed) {
  * @param {Object} updateData Fields to update (title, description, deadline)
  */
 export async function updateTask(taskId, updateData) {
+  const user = getCurrentUser();
+  if (!user) throw new Error("Authentication required.");
+
   if (!isFirebaseConfigured() || !db) {
-    return localStore.updateTask(taskId, updateData);
+    return localStore.updateTask(taskId, updateData, user.uid);
   }
 
   const taskRef = doc(db, COLLECTION_NAME, taskId);
@@ -279,8 +302,11 @@ export async function updateTask(taskId, updateData) {
  * @param {string} taskId Task Document ID
  */
 export async function removeTask(taskId) {
+  const user = getCurrentUser();
+  if (!user) throw new Error("Authentication required.");
+
   if (!isFirebaseConfigured() || !db) {
-    return localStore.deleteTask(taskId);
+    return localStore.deleteTask(taskId, user.uid);
   }
 
   const taskRef = doc(db, COLLECTION_NAME, taskId);
@@ -288,8 +314,9 @@ export async function removeTask(taskId) {
 }
 
 /**
- * Reset demo tasks to initial set
+ * Reset demo tasks for current user
  */
 export function resetDemoTasks() {
-  localStore.resetDemo();
+  const user = getCurrentUser();
+  localStore.resetDemo(user ? user.uid : "demo-authorized-user-001");
 }
